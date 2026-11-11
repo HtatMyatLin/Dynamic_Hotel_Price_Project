@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Pricing Pro - ホテル収益管理システム (RMS)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#0f172a',
+                            900: '#0b0f19',
+                            950: '#05070d',
+                        },
+                        indigo: {
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+    </style>
+</head>
+
+<body x-data="rmsApp()" x-init="initApp()" class="min-h-screen text-slate-100 bg-slate-950 pb-12">
+
+    <!-- Top Navigation / Header -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Title -->
+                <div class="flex items-center space-x-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                        <i class="fa-solid me-0.5 fa-chart-line text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+                                Dynamic Pricing Pro
+                            </span>
+                            <span
+                                class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">v2.4</span>
+                        </div>
+                        <p class="text-xs text-slate-400">ホテル収益管理システム (RMS)</p>
+                    </div>
+                </div>
+
+                <!-- Hotel & Controller Controls -->
+                <div class="flex items-center space-x-4">
+                    <!-- Hotel Selector -->
+                    <div
+                        class="hidden md:flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs">
+                        <i class="fa-solid fa-hotel text-indigo-400"></i>
+                        <span class="font-medium text-slate-200">グランドシティホテル東京</span>
+                    </div>
+
+                    <!-- Date Badge -->
+                    <div
+                        class="hidden sm:flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs text-slate-300">
+                        <i class="fa-regular fa-calendar text-cyan-400"></i>
+                        <span x-text="todayDateStr"></span>
+                    </div>
+
+                    <!-- Site Controller Sync Status -->
+                    <div
+                        class="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs text-emerald-400">
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <span class="font-medium">TL-リンカーン連携中</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Navigation Bar -->
+            <div class="flex space-x-2 border-t border-slate-800/80 pt-2 pb-2 overflow-x-auto custom-scrollbar">
+                <button @click="activeTab = 'tab1'"
+                    :class="activeTab === 'tab1' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'"
+                    class="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>トップ (本日のダッシュボード)</span>
+                </button>
+
+                <button @click="activeTab = 'tab2'"
+                    :class="activeTab === 'tab2' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'"
+                    class="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap">
+                    <i class="fa-solid fa-calendar-week"></i>
+                    <span>直近の価格提案 (14日マトリクス)</span>
+                    <span
+                        class="px-1.5 py-0.5 text-[10px] bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-full">4件要調整</span>
+                </button>
+
+                <button @click="activeTab = 'tab3'"
+                    :class="activeTab === 'tab3' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'"
+                    class="flex items-center space-x-2 px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>長期的な価格提案 (カレンダー / 個別設定)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+
+        <!-- TAB 1: TOP / TODAY'S DASHBOARD -->
+        <div x-show="activeTab === 'tab1'" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            class="space-y-6">
+
+            <!-- Filter Bar & Room Filter -->
+            <div class="glass-panel p-4 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">部屋タイプ選択:</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="type in ['all', 'single', 'double', 'twin', 'suite']">
+                            <button @click="selectedRoomFilter = type; updateChart()"
+                                :class="selectedRoomFilter === type ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50' : 'bg-slate-800/60 text-slate-400 border-slate-700/50 hover:bg-slate-700/50'"
+                                class="px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150">
+                                <span x-text="roomFilterNames[type]"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div class="text-xs text-slate-400 flex items-center space-x-2">
+                    <i class="fa-solid fa-rotate text-indigo-400"></i>
+                    <span>最終更新: 10分前 (競合価格クローリング完了)</span>
+                </div>
+            </div>
+
+            <!-- Top Metric Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Occupancy Rate -->
+                <div
+                    class="glass-panel p-5 rounded-xl relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-slate-400 font-medium">本日稼働率 (Occupancy)</p>
+                            <h3 class="text-2xl font-bold mt-2 text-white">88%</h3>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <i class="fa-solid fa-chart-pie text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center text-xs text-emerald-400 font-medium">
+                        <i class="fa-solid fa-arrow-up-right me-1"></i>
+                        <span>前日比 +4% (高稼働)</span>
+                    </div>
+                </div>
+
+                <!-- Remaining Rooms -->
+                <div
+                    class="glass-panel p-5 rounded-xl relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-slate-400 font-medium">残室数 (Remaining)</p>
+                            <h3 class="text-2xl font-bold mt-2 text-amber-300">15 <span
+                                    class="text-sm text-slate-400 font-normal">室</span></h3>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <i class="fa-solid fa-bed text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center text-xs text-slate-400">
+                        <span>全120室中 (残り12.5%)</span>
+                    </div>
+                </div>
+
+                <!-- Our Avg Price -->
+                <div
+                    class="glass-panel p-5 rounded-xl relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-slate-400 font-medium">自社平均販売価格 (ADR)</p>
+                            <h3 class="text-2xl font-bold mt-2 text-indigo-300">¥18,500</h3>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <i class="fa-solid fa-tags text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center text-xs text-indigo-400">
+                        <i class="fa-solid fa-arrow-up-right me-1"></i>
+                        <span>AI標準設定通り</span>
+                    </div>
+                </div>
+
+                <!-- Competitor Avg Price -->
+                <div
+                    class="glass-panel p-5 rounded-xl relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-slate-400 font-medium">競合3社平均価格</p>
+                            <h3 class="text-2xl font-bold mt-2 text-cyan-300">¥19,800</h3>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            <i class="fa-solid fa-building-user text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center text-xs text-cyan-400 font-medium">
+                        <span>自社より +¥1,300 高め</span>
+                    </div>
+                </div>
+
+                <!-- Event Alert Card -->
+                <div
+                    class="glass-panel p-5 rounded-xl relative overflow-hidden group hover:border-indigo-500/40 transition-all border-rose-500/30 bg-rose-950/10">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-rose-300 font-medium">周辺イベント警報</p>
+                            <h3 class="text-sm font-bold mt-2 text-white line-clamp-1">国際展示場 大型学会</h3>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                            <i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center text-xs text-rose-300">
+                        <span>需要レベル: <b>高 (高単価狙い)</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Price Comparison Chart Section -->
+            <div class="glass-panel p-6 rounded-xl">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-indigo-400"></i>
+                            自社価格 vs 競合3社価格 比較グラフ
+                        </h2>
+                        <p class="text-xs text-slate-400">部屋タイプ別の自社設定価格と競合各社のリアルタイム設定価格の比較</p>
+                    </div>
+                    <div class="flex items-center space-x-4 text-xs">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span>
+                            <span class="text-slate-300">自社価格</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-3 h-3 rounded-sm bg-slate-500 inline-block"></span>
+                            <span class="text-slate-300">競合平均</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="h-64 sm:h-80 w-full relative">
+                    <canvas id="todayComparisonChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Today Table -->
+            <div class="glass-panel rounded-xl overflow-hidden">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-md font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-cyan-400"></i>
+                            本日(当日) 部屋タイプ別販売価格 & 競合状況詳細
+                        </h2>
+                    </div>
+                    <button @click="showToast('最新データを手動取得しました')"
+                        class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                        <i class="fa-solid fa-arrows-rotate me-1"></i> 再読込
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-slate-900/80 text-slate-400 border-b border-slate-800 uppercase tracking-wider">
+                                <th class="p-4">部屋タイプ</th>
+                                <th class="p-4">自社現在価格</th>
+                                <th class="p-4">競合A (ホテルグランド)</th>
+                                <th class="p-4">競合B (シティイン)</th>
+                                <th class="p-4">競合C (プラザ東京)</th>
+                                <th class="p-4">競合平均</th>
+                                <th class="p-4">残室数</th>
+                                <th class="p-4 text-center">ダイナミックステータス</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800 text-slate-200">
+                            <template x-for="item in todayDetails" :key="item.room">
+                                <tr class="hover:bg-slate-800/40 transition">
+                                    <td class="p-4 font-bold text-white flex items-center gap-2">
+                                        <i class="fa-solid" :class="item.icon + ' text-indigo-400'"></i>
+                                        <span x-text="item.room"></span>
+                                    </td>
+                                    <td class="p-4 font-bold text-indigo-300 text-sm"
+                                        x-text="'¥' + item.ourPrice.toLocaleString()"></td>
+                                    <td class="p-4 text-slate-400" x-text="'¥' + item.compA.toLocaleString()"></td>
+                                    <td class="p-4 text-slate-400" x-text="'¥' + item.compB.toLocaleString()"></td>
+                                    <td class="p-4 text-slate-400" x-text="'¥' + item.compC.toLocaleString()"></td>
+                                    <td class="p-4 font-semibold text-cyan-300"
+                                        x-text="'¥' + item.compAvg.toLocaleString()"></td>
+                                    <td class="p-4 font-bold"
+                                        :class="item.remaining < 5 ? 'text-rose-400' : 'text-slate-300'">
+                                        <span x-text="item.remaining + ' 室'"></span>
+                                    </td>
+                                    <td class="p-4 text-center">
+                                        <span :class="item.statusColor"
+                                            class="px-2.5 py-1 rounded-full text-[11px] font-semibold border inline-block"
+                                            x-text="item.status"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: 14-DAY NEAR-TERM MATRIX & ALERT -->
+        <div x-show="activeTab === 'tab2'" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            class="space-y-6">
+
+            <!-- Filter & Header Summary -->
+            <div
+                class="glass-panel p-5 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i>
+                        直近14日間 収益最適化マトリクス & 価格調整提案
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">天気・周辺イベント・競合動向をAIが複合解析し、即時価格調整を推奨します。</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs text-slate-400 font-medium">競合比較基準:</span>
+                    <select x-model="matrixRoomType"
+                        class="bg-slate-800 text-slate-200 border border-slate-700 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                        <option value="single">シングルルーム</option>
+                        <option value="double">ダブルルーム</option>
+                        <option value="twin">ツインルーム</option>
+                        <option value="suite">スイートルーム</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Horizontal 14-Day Matrix Table -->
+            <div class="glass-panel rounded-xl overflow-hidden border border-slate-800">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[1100px]">
+                        <thead>
+                            <tr class="bg-slate-900 border-b border-slate-800">
+                                <th
+                                    class="p-3 text-xs text-slate-400 font-semibold w-40 sticky left-0 bg-slate-900 z-10 shadow-r">
+                                    指標 / 日付</th>
+                                <template x-for="day in nearTermData" :key="day.dateStr">
+                                    <th class="p-3 text-center border-l border-slate-800/60 min-w-[100px]"
+                                        :class="day.isWeekend ? 'bg-indigo-950/30' : ''">
+                                        <div class="text-xs font-semibold text-slate-300" x-text="day.dateStr"></div>
+                                        <div class="text-[10px] font-normal"
+                                            :class="day.dayOfWeek === '土' ? 'text-blue-400' : (day.dayOfWeek === '日' ? 'text-rose-400' : 'text-slate-400')"
+                                            x-text="'(' + day.dayOfWeek + ')'"></div>
+                                    </th>
+                                </template>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/80 text-xs">
+
+                            <!-- Weather Row -->
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td
+                                    class="p-3 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                                    天気予報</td>
+                                <template x-for="day in nearTermData" :key="'weather-'+day.dateStr">
+                                    <td class="p-3 text-center border-l border-slate-800/50">
+                                        <div class="flex flex-col items-center justify-center gap-1">
+                                            <i class="fa-solid text-lg"
+                                                :class="day.weatherIcon + ' ' + day.weatherColor"></i>
+                                            <span class="text-[10px] text-slate-400" x-text="day.weatherText"></span>
+                                        </div>
+                                    </td>
+                                </template>
+                            </tr>
+
+                            <!-- Event Info Row -->
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td
+                                    class="p-3 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                                    周辺イベント</td>
+                                <template x-for="day in nearTermData" :key="'event-'+day.dateStr">
+                                    <td class="p-3 text-center border-l border-slate-800/50">
+                                        <div x-show="day.event"
+                                            class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-[10px] text-amber-300 font-medium line-clamp-2"
+                                            :title="day.event" x-text="day.event"></div>
+                                        <div x-show="!day.event" class="text-slate-600 text-[10px]">-</div>
+                                    </td>
+                                </template>
+                            </tr>
+
+                            <!-- Occupancy & Remaining Rooms Row -->
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td
+                                    class="p-3 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                                    予測稼働率 (残室)</td>
+                                <template x-for="day in nearTermData" :key="'occ-'+day.dateStr">
+                                    <td class="p-3 text-center border-l border-slate-800/50">
+                                        <div class="font-bold text-slate-200" x-text="day.occupancy + '%'"></div>
+                                        <div class="text-[10px]"
+                                            :class="day.remainingRooms < 10 ? 'text-rose-400 font-bold' : 'text-slate-400'"
+                                            x-text="'残 ' + day.remainingRooms + '室'"></div>
+                                    </td>
+                                </template>
+                            </tr>
+
+                            <!-- Competitor Avg Price Row -->
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td
+                                    class="p-3 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                                    競合平均価格</td>
+                                <template x-for="day in nearTermData" :key="'comp-'+day.dateStr">
+                                    <td class="p-3 text-center border-l border-slate-800/50 text-cyan-300 font-medium"
+                                        x-text="'¥' + day.competitorPrices[matrixRoomType].toLocaleString()"></td>
+                                </template>
+                            </tr>
+
+                            <!-- Our Current Price Row -->
+                            <tr class="hover:bg-slate-800/30 transition bg-slate-900/50">
+                                <td
+                                    class="p-3 font-semibold text-indigo-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                                    自社現在設定価格</td>
+                                <template x-for="day in nearTermData" :key="'our-'+day.dateStr">
+                                    <td class="p-3 text-center border-l border-slate-800/50 font-bold text-indigo-200 text-sm"
+                                        x-text="'¥' + day.ourPrices[matrixRoomType].toLocaleString()"></td>
+                                </template>
+                            </tr>
+
+                            <!-- AI Suggestion & Action Button Row -->
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td
+                                    class="p-3 font-semibold text-slate-300 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+                                    AI調整提案 / アクション</td>
+                                <template x-for="day in nearTermData" :key="'alert-'+day.dateStr">
+                                    <td class="p-3 text-center border-l border-slate-800/50">
+                                        <button @click="openModal(day)"
+                                            :class="day.alertType === 'raise' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30' : (day.alertType === 'lower' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20')"
+                                            class="w-full py-1.5 px-2 rounded-lg border text-[11px] font-bold transition flex flex-col items-center justify-center gap-0.5 group">
+                                            <span x-text="day.suggestionBadge"></span>
+                                            <span class="text-[9px] opacity-80 group-hover:underline">詳細・送信 <i
+                                                    class="fa-solid fa-chevron-right text-[8px]"></i></span>
+                                        </button>
+                                    </td>
+                                </template>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: LONG-TERM CALENDAR & DAY-SPECIFIC SETUP -->
+        <div x-show="activeTab === 'tab3'" x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            class="space-y-6">
+
+            <!-- Sub-View Switcher -->
+            <div
+                class="glass-panel p-2 rounded-xl flex items-center justify-center max-w-md mx-auto space-x-2 bg-slate-900/60 border-slate-800">
+                <button @click="subTab = 'subA'"
+                    :class="subTab === 'subA' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+                    class="flex-1 py-2 rounded-lg text-xs font-semibold transition">
+                    <i class="fa-regular fa-calendar-days me-1.5"></i> カレンダー表示 (長期分析)
+                </button>
+                <button @click="subTab = 'subB'"
+                    :class="subTab === 'subB' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+                    class="flex-1 py-2 rounded-lg text-xs font-semibold transition">
+                    <i class="fa-solid fa-sliders me-1.5"></i> 翌日(朝/昼)販売開始分 (1日個別設定)
+                </button>
+            </div>
+
+            <!-- SUB-VIEW A: Full Month Calendar -->
+            <div x-show="subTab === 'subA'" class="space-y-4">
+                <div class="glass-panel p-5 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-calendar text-indigo-400"></i>
+                            長期販売カレンダー (直近14日以降～6ヶ月先)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">販売開始済み日程および未販売（新着売り出し）日程の推奨価格とサイトコントローラーランクを表示</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-slate-400">表示月:</span>
+                        <select
+                            class="bg-slate-800 text-slate-200 border border-slate-700 text-xs rounded-lg px-3 py-1.5">
+                            <option>2026年 11月</option>
+                            <option>2026年 12月</option>
+                            <option>2027年 01月</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Calendar Legend -->
+                <div class="flex flex-wrap items-center gap-4 text-xs text-slate-300 px-2">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded bg-indigo-900/60 border border-indigo-500/40 inline-block"></span>
+                        <span>販売開始済み</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span
+                            class="w-3 h-3 rounded bg-slate-900 border border-dashed border-slate-600 inline-block"></span>
+                        <span>未販売 (未リリース分)</span>
+                    </div>
+                    <div class="flex items-center space-x-1 text-rose-400 font-medium">
+                        <i class="fa-solid fa-circle text-[8px]"></i>
+                        <span>要値上げ提案</span>
+                    </div>
+                    <div class="flex items-center space-x-1 text-emerald-400 font-medium">
+                        <i class="fa-solid fa-circle text-[8px]"></i>
+                        <span>適正価格</span>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-800">
+                    <!-- Day Header -->
+                    <div
+                        class="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold text-slate-400 border-b border-slate-800 pb-2">
+                        <span class="text-rose-400">日</span>
+                        <span>月</span>
+                        <span>火</span>
+                        <span>水</span>
+                        <span>木</span>
+                        <span>金</span>
+                        <span class="text-blue-400">土</span>
+                    </div>
+
+                    <!-- Calendar Cells Grid -->
+                    <div class="grid grid-cols-7 gap-2">
+                        <template x-for="day in monthCalendarData" :key="day.dayNum">
+                            <div @click="openModal(day)"
+                                :class="day.isOnSale ? 'bg-slate-900/80 border-slate-800 hover:border-indigo-500/60 cursor-pointer' : 'bg-slate-950/40 border-dashed border-slate-800 hover:border-slate-600 cursor-pointer'"
+                                class="min-h-[100px] p-2 rounded-lg border flex flex-col justify-between transition group relative">
+
+                                <!-- Day Header inside Card -->
+                                <div class="flex justify-between items-start">
+                                    <span class="text-xs font-bold"
+                                        :class="day.isSunday ? 'text-rose-400' : (day.isSaturday ? 'text-blue-400' : 'text-slate-300')"
+                                        x-text="day.dayNum"></span>
+                                    <span x-show="!day.isOnSale"
+                                        class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">未販売</span>
+                                    <span x-show="day.isOnSale"
+                                        class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
+                                        x-text="day.rank"></span>
+                                </div>
+
+                                <!-- Center Content -->
+                                <div class="my-1">
+                                    <template x-if="day.isOnSale">
+                                        <div>
+                                            <div class="text-[11px] font-bold text-indigo-200"
+                                                x-text="'¥' + day.ourPrice.toLocaleString()"></div>
+                                            <div class="text-[9px] text-slate-400"
+                                                x-text="'競合: ¥' + day.compPrice.toLocaleString()"></div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!day.isOnSale">
+                                        <div>
+                                            <div class="text-[10px] font-semibold text-amber-300"
+                                                x-text="'推奨: ¥' + day.launchPrice.toLocaleString()"></div>
+                                            <div class="text-[9px] text-slate-500" x-text="'TLランク: ' + day.rank"></div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Footer Badge -->
+                                <div>
+                                    <span :class="day.statusColor"
+                                        class="text-[9px] px-1 py-0.5 rounded font-medium block text-center truncate"
+                                        x-text="day.statusText">
+                                    </span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW B: Day-Specific Launch Setup -->
+            <div x-show="subTab === 'subB'" class="space-y-4">
+                <div class="glass-panel p-5 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-rocket text-indigo-400"></i>
+                            翌日販売開始分 (1日個別設定 & TL-リンカーン連携一括適用)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">明日朝・昼に予約サイトで販売開始する6ヶ月先（特定日）の部屋タイプ別初期リリース価格を設定します。</p>
+                    </div>
+                    <button @click="showToast('全部屋タイプの初期販売価格をTL-リンカーンに即時送信しました！');"
+                        class="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white px-5 py-2.5 rounded-lg text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition transform active:scale-95">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>一括でTL-リンカーンに適用送信</span>
+                    </button>
+                </div>
+
+                <!-- Launch Target Date Banner -->
+                <div
+                    class="glass-card p-4 rounded-xl border border-indigo-500/30 flex flex-wrap items-center justify-between gap-4 bg-indigo-950/20">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-3 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                            <i class="fa-regular fa-calendar-check text-xl"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-indigo-300 font-semibold uppercase">対象売り出し日 (6ヶ月先)</div>
+                            <div class="text-base font-extrabold text-white">2027年 4月 15日 (木曜日)</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-6 text-xs text-slate-300">
+                        <div>
+                            <span class="text-slate-400">予測イベントスコア:</span>
+                            <span class="font-bold text-amber-300 ms-1"><i class="fa-solid fa-fire text-amber-400"></i>
+                                高 (85/100)</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">周辺エリア平均:</span>
+                            <span class="font-bold text-cyan-300 ms-1">¥16,200</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Setup Table -->
+                <div class="glass-panel rounded-xl overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-slate-900 text-slate-400 border-b border-slate-800 uppercase tracking-wider">
+                                    <th class="p-4">部屋タイプ</th>
+                                    <th class="p-4">基本ベース価格</th>
+                                    <th class="p-4">周辺競合相場帯</th>
+                                    <th class="p-4">イベント補正</th>
+                                    <th class="p-4">AI推奨ローンチ価格</th>
+                                    <th class="p-4">TL-リンカーン 料金レベル設定</th>
+                                    <th class="p-4 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-200">
+                                <template x-for="item in daySetupList" :key="item.room">
+                                    <tr class="hover:bg-slate-800/40 transition">
+                                        <td class="p-4 font-bold text-white flex items-center gap-2">
+                                            <i class="fa-solid" :class="item.icon + ' text-indigo-400'"></i>
+                                            <span x-text="item.room"></span>
+                                        </td>
+                                        <td class="p-4 text-slate-400" x-text="'¥' + item.basePrice.toLocaleString()">
+                                        </td>
+                                        <td class="p-4 text-slate-400" x-text="item.compRange"></td>
+                                        <td class="p-4 text-amber-300 font-semibold" x-text="item.eventFactor"></td>
+                                        <td class="p-4">
+                                            <input type="number" x-model.number="item.launchPrice"
+                                                class="bg-slate-900 border border-slate-700 text-indigo-300 font-bold px-3 py-1.5 rounded-lg w-28 text-xs focus:outline-none focus:border-indigo-500">
+                                        </td>
+                                        <td class="p-4">
+                                            <select x-model="item.tlLevel"
+                                                class="bg-slate-900 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs focus:outline-none focus:border-indigo-500">
+                                                <option value="S">レベル S (+30%)</option>
+                                                <option value="A">レベル A (+15%)</option>
+                                                <option value="B">レベル B (標準)</option>
+                                                <option value="C">レベル C (-10%)</option>
+                                            </select>
+                                        </td>
+                                        <td class="p-4 text-center">
+                                            <button @click="showToast(item.room + ' の初期販売価格を適用しました')"
+                                                class="bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition font-medium">
+                                                個別更新
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- AI Breakdown Modal -->
+    <div x-show="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+        x-transition:enter="transition opacity duration-200" x-transition:leave="transition opacity duration-150"
+        style="display: none;">
+        <div @click.away="modalOpen = false"
+            class="glass-panel border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative space-y-5 bg-slate-900">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-start border-b border-slate-800 pb-4">
+                <div>
+                    <span class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">AI 価格調整分析ブレイクダウン</span>
+                    <h3 class="text-lg font-bold text-white mt-1" x-text="selectedModalData?.dateStr + ' の詳細提案'"></h3>
+                </div>
+                <button @click="modalOpen = false" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="space-y-4 text-xs">
+                <!-- Analysis Reason Box -->
+                <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-2">
+                    <div class="flex items-center gap-2 text-indigo-300 font-bold">
+                        <i class="fa-solid fa-brain"></i>
+                        <span>AI動的調整理由:</span>
+                    </div>
+                    <p class="text-slate-200 leading-relaxed font-medium" x-text="selectedModalData?.aiReason"></p>
+                </div>
+
+                <!-- Dynamic Comparison Details -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                        <span class="text-slate-400 block text-[10px]">現在の設定価格</span>
+                        <span class="text-base font-bold text-slate-200"
+                            x-text="'¥' + (selectedModalData?.ourPrices ? selectedModalData.ourPrices[matrixRoomType].toLocaleString() : (selectedModalData?.ourPrice ? selectedModalData.ourPrice.toLocaleString() : '18,500'))"></span>
+                    </div>
+                    <div class="p-3 rounded-lg bg-indigo-950/40 border border-indigo-500/30">
+                        <span class="text-indigo-300 block text-[10px]">AI推奨修正価格</span>
+                        <span class="text-base font-bold text-indigo-200"
+                            x-text="'¥' + (selectedModalData?.suggestedPrice ? selectedModalData.suggestedPrice.toLocaleString() : '20,500')"></span>
+                    </div>
+                </div>
+
+                <!-- Key Factors -->
+                <div class="space-y-1.5">
+                    <div class="text-slate-400 font-medium">評価要因:</div>
+                    <ul class="space-y-1 text-slate-300 list-disc list-inside">
+                        <li>周辺イベント需要: <span class="font-semibold text-amber-300"
+                                x-text="selectedModalData?.event || '特に指定なし'"></span></li>
+                        <li>天気影響度: <span class="font-semibold text-slate-200"
+                                x-text="selectedModalData?.weatherText || '晴れ (好影響)'"></span></li>
+                        <li>競合満室率: <span class="font-semibold text-cyan-300">約 82% (高水準)</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Modal Footer / Actions -->
+            <div class="border-t border-slate-800 pt-4 flex items-center justify-end space-x-3">
+                <button @click="modalOpen = false"
+                    class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+                    キャンセル
+                </button>
+                <button @click="applyModalPrice()"
+                    class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>TL-リンカーンへ更新価格を送信</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification System -->
+    <div x-show="toast.show" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 translate-y-4"
+        class="fixed bottom-6 right-6 z-50 glass-panel border border-emerald-500/40 bg-slate-900/95 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3"
+        style="display: none;">
+        <div
+            class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <i class="fa-solid fa-check text-sm"></i>
+        </div>
+        <div>
+            <div class="text-xs font-bold text-emerald-300">TL-リンカーン連携成功</div>
+            <div class="text-xs text-slate-300" x-text="toast.message"></div>
+        </div>
+    </div>
+
+    <script>
+        function rmsApp() {
+            return {
+                activeTab: 'tab1',
+                subTab: 'subA',
+                selectedRoomFilter: 'all',
+                matrixRoomType: 'single',
+                todayDateStr: '2026年 10月 14日 (水)',
+                modalOpen: false,
+                selectedModalData: null,
+                toast: {
+                    show: false,
+                    message: ''
+                },
+                chartInstance: null,
+
+                roomFilterNames: {
+                    all: '全室平均',
+                    single: 'シングル',
+                    double: 'ダブル',
+                    twin: 'ツイン',
+                    suite: 'スイート'
+                },
+
+                // Today Table Data
+                todayDetails: [
+                    { room: 'シングルルーム', icon: 'fa-user', ourPrice: 14500, compA: 15800, compB: 15200, compC: 16000, compAvg: 15660, remaining: 4, status: '完売間近・値上げ推奨', statusColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
+                    { room: 'ダブルルーム', icon: 'fa-user-group', ourPrice: 18000, compA: 19500, compB: 18800, compC: 19000, compAvg: 19100, remaining: 6, status: '要微調整 (+¥1,000)', statusColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
+                    { room: 'ツインルーム', icon: 'fa-bed', ourPrice: 22000, compA: 21800, compB: 22500, compC: 22000, compAvg: 22100, remaining: 3, status: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+                    { room: 'スイートルーム', icon: 'fa-crown', ourPrice: 45000, compA: 48000, compB: 46000, compC: 47500, compAvg: 47160, remaining: 2, status: '高需要・単価維持', statusColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' }
+                ],
+
+                // 14-Day Near Term Data
+                nearTermData: [
+                    { dateStr: '10/14', dayOfWeek: '水', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '快晴', event: '国際展示場 大型学会', occupancy: 88, remainingRooms: 15, competitorPrices: { single: 15660, double: 19100, twin: 22100, suite: 47160 }, ourPrices: { single: 14500, double: 18000, twin: 22000, suite: 45000 }, alertType: 'raise', suggestionBadge: '価格調整要 (+¥1,500)', suggestedPrice: 16000, aiReason: '周辺の大型学会開催により競合価格が高騰しています。残り15室のため、即時+¥1,500の値上げを推奨します。' },
+                    { dateStr: '10/15', dayOfWeek: '木', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '晴れ', event: '', occupancy: 72, remainingRooms: 34, competitorPrices: { single: 13500, double: 16500, twin: 19500, suite: 42000 }, ourPrices: { single: 13800, double: 16800, twin: 19800, suite: 42000 }, alertType: 'ok', suggestionBadge: '適正価格', suggestedPrice: 13800, aiReason: '現在の需要予測と競合価格が均衡しています。現在の設定価格を維持してください。' },
+                    { dateStr: '10/16', dayOfWeek: '金', weatherIcon: 'fa-cloud-sun', weatherColor: 'text-slate-300', weatherText: '曇時々晴', event: 'ドームライブDAY1', occupancy: 94, remainingRooms: 7, competitorPrices: { single: 18500, double: 23000, twin: 26000, suite: 55000 }, ourPrices: { single: 16000, double: 20000, twin: 23000, suite: 48000 }, alertType: 'raise', suggestionBadge: '大幅強気要 (+¥2,500)', suggestedPrice: 18500, aiReason: '近隣ドームでの大型ライブ開催により競合全社が完売傾向です。自社残室7室のため強力な強気価格設定が必要です。' },
+                    { dateStr: '10/17', dayOfWeek: '土', isWeekend: true, weatherIcon: 'fa-cloud-rain', weatherColor: 'text-cyan-400', weatherText: '小雨', event: 'ドームライブDAY2', occupancy: 98, remainingRooms: 2, competitorPrices: { single: 21000, double: 26000, twin: 29000, suite: 60000 }, ourPrices: { single: 20500, double: 25000, twin: 28000, suite: 58000 }, alertType: 'raise', suggestionBadge: '完売間近 (+¥1,000)', suggestedPrice: 21500, aiReason: '残室わずか2室です。最終売り切り高単価での自動調整を適用します。' },
+                    { dateStr: '10/18', dayOfWeek: '日', isWeekend: true, weatherIcon: 'fa-cloud-bolt', weatherColor: 'text-rose-400', weatherText: '台風接近警報', event: '', occupancy: 45, remainingRooms: 66, competitorPrices: { single: 11000, double: 14000, twin: 16500, suite: 35000 }, ourPrices: { single: 13500, double: 16500, twin: 19000, suite: 40000 }, alertType: 'lower', suggestionBadge: '値下げ調整要 (-¥2,000)', suggestedPrice: 11500, aiReason: '台風接近の影響によりキャンセル増加予想。競合他社が値下げを実施しているため追従が必要です。' },
+                    { dateStr: '10/19', dayOfWeek: '月', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '晴れ', event: '', occupancy: 60, remainingRooms: 48, competitorPrices: { single: 12000, double: 15000, twin: 17500, suite: 38000 }, ourPrices: { single: 12200, double: 15200, twin: 17800, suite: 38000 }, alertType: 'ok', suggestionBadge: '適正価格', suggestedPrice: 12200, aiReason: '平日基準値に適合しています。' },
+                    { dateStr: '10/20', dayOfWeek: '火', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '快晴', event: 'IT国際展示会', occupancy: 82, remainingRooms: 21, competitorPrices: { single: 15000, double: 18500, twin: 21000, suite: 45000 }, ourPrices: { single: 13800, double: 17000, twin: 19500, suite: 42000 }, alertType: 'raise', suggestionBadge: '値上げ提案 (+¥1,200)', suggestedPrice: 15000, aiReason: '展示会需要によりビジネス利用予約が急増中です。価格を引き上げ収益を最大化してください。' },
+                    { dateStr: '10/21', dayOfWeek: '水', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '晴れ', event: 'IT国際展示会', occupancy: 79, remainingRooms: 25, competitorPrices: { single: 14800, double: 18000, twin: 20500, suite: 44000 }, ourPrices: { single: 14800, double: 18000, twin: 20500, suite: 44000 }, alertType: 'ok', suggestionBadge: '適正価格', suggestedPrice: 14800, aiReason: '競合と同等の最適なプライシングです。' },
+                    { dateStr: '10/22', dayOfWeek: '木', weatherIcon: 'fa-cloud', weatherColor: 'text-slate-400', weatherText: '曇り', event: '', occupancy: 55, remainingRooms: 54, competitorPrices: { single: 12000, double: 15000, twin: 17000, suite: 36000 }, ourPrices: { single: 12000, double: 15000, twin: 17000, suite: 36000 }, alertType: 'ok', suggestionBadge: '適正価格', suggestedPrice: 12000, aiReason: '安定推移。' },
+                    { dateStr: '10/23', dayOfWeek: '金', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '快晴', event: 'アリーナフェス', occupancy: 89, remainingRooms: 13, competitorPrices: { single: 17000, double: 21000, twin: 24000, suite: 50000 }, ourPrices: { single: 15500, double: 19000, twin: 22000, suite: 46000 }, alertType: 'raise', suggestionBadge: '値上げ推奨 (+¥1,500)', suggestedPrice: 17000, aiReason: 'アリーナフェス動員による高い客室需要。' },
+                    { dateStr: '10/24', dayOfWeek: '土', isWeekend: true, weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '晴れ', event: '秋の観光ピーク', occupancy: 95, remainingRooms: 6, competitorPrices: { single: 22000, double: 27000, twin: 31000, suite: 65000 }, ourPrices: { single: 21500, double: 26500, twin: 30000, suite: 63000 }, alertType: 'ok', suggestionBadge: '適正高単価', suggestedPrice: 21500, aiReason: '高単価で順調に消化されています。' },
+                    { dateStr: '10/25', dayOfWeek: '日', isWeekend: true, weatherIcon: 'fa-cloud-sun', weatherColor: 'text-slate-300', weatherText: '曇時々晴', event: '', occupancy: 50, remainingRooms: 60, competitorPrices: { single: 11500, double: 14500, twin: 16500, suite: 35000 }, ourPrices: { single: 11500, double: 14500, twin: 16500, suite: 35000 }, alertType: 'ok', suggestionBadge: '適正価格', suggestedPrice: 11500, aiReason: '日曜需要に適合。' },
+                    { dateStr: '10/26', dayOfWeek: '月', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '晴れ', event: '', occupancy: 42, remainingRooms: 70, competitorPrices: { single: 11000, double: 14000, twin: 16000, suite: 34000 }, ourPrices: { single: 11000, double: 14000, twin: 16000, suite: 34000 }, alertType: 'ok', suggestionBadge: '適正価格', suggestedPrice: 11000, aiReason: '特記なし。' },
+                    { dateStr: '10/27', dayOfWeek: '火', weatherIcon: 'fa-sun', weatherColor: 'text-amber-400', weatherText: '晴れ', event: '全国医療学会', occupancy: 85, remainingRooms: 18, competitorPrices: { single: 16000, double: 19500, twin: 22500, suite: 48000 }, ourPrices: { single: 14000, double: 17500, twin: 20000, suite: 43000 }, alertType: 'raise', suggestionBadge: '要値上げ (+¥2,000)', suggestedPrice: 16000, aiReason: '学会需要の取りこぼしを防ぐため価格引き上げを強く推奨。' }
+                ],
+
+                // Month Calendar Data
+                monthCalendarData: [
+                    { dayNum: 1, isSunday: true, isOnSale: true, ourPrice: 14000, compPrice: 14500, rank: 'ランクB', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/01 (日)', aiReason: '安定した週末需要です。' },
+                    { dayNum: 2, isOnSale: true, ourPrice: 12000, compPrice: 12000, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/02 (月)', aiReason: '平日需要ベース。' },
+                    { dayNum: 3, isOnSale: true, ourPrice: 16500, compPrice: 18000, rank: 'ランクA', statusText: '要値上げ +¥1,500', statusColor: 'bg-rose-500/20 text-rose-300', dateStr: '11/03 (火・祝)', aiReason: '祝日需要により周辺ホテルが高価格化しています。' },
+                    { dayNum: 4, isOnSale: true, ourPrice: 12000, compPrice: 12000, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/04 (水)', aiReason: '特記なし。' },
+                    { dayNum: 5, isOnSale: true, ourPrice: 12500, compPrice: 12500, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/05 (木)', aiReason: '特記なし。' },
+                    { dayNum: 6, isOnSale: true, ourPrice: 15000, compPrice: 16000, rank: 'ランクB', statusText: '要値上げ +¥1,000', statusColor: 'bg-rose-500/20 text-rose-300', dateStr: '11/06 (金)', aiReason: '週末前夜の需要増加。' },
+                    { dayNum: 7, isSaturday: true, isOnSale: true, ourPrice: 21000, compPrice: 21000, rank: 'ランクS', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/07 (土)', aiReason: '高稼働設定中。' },
+                    { dayNum: 8, isSunday: true, isOnSale: true, ourPrice: 13000, compPrice: 13000, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/08 (日)', aiReason: '日曜日ベース。' },
+                    { dayNum: 9, isOnSale: true, ourPrice: 11500, compPrice: 12500, rank: 'ランクD', statusText: '要値上げ +¥1,000', statusColor: 'bg-rose-500/20 text-rose-300', dateStr: '11/09 (月)', aiReason: '早期予約増加中。' },
+                    { dayNum: 10, isOnSale: true, ourPrice: 12000, compPrice: 12000, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/10 (火)', aiReason: '安定推移。' },
+                    { dayNum: 11, isOnSale: true, ourPrice: 12000, compPrice: 12000, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/11 (水)', aiReason: '安定推移。' },
+                    { dayNum: 12, isOnSale: true, ourPrice: 12000, compPrice: 12000, rank: 'ランクC', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/12 (木)', aiReason: '安定推移。' },
+                    { dayNum: 13, isOnSale: true, ourPrice: 15500, compPrice: 15500, rank: 'ランクB', statusText: '適正価格', statusColor: 'bg-emerald-500/20 text-emerald-300', dateStr: '11/13 (金)', aiReason: '金曜基準。' },
+                    { dayNum: 14, isSaturday: true, isOnSale: true, ourPrice: 22000, compPrice: 24000, rank: 'ランクS', statusText: '要値上げ +¥2,000', statusColor: 'bg-rose-500/20 text-rose-300', dateStr: '11/14 (土)', aiReason: '紅葉シーズン需要開始。' },
+
+                    // Unreleased Days
+                    { dayNum: 15, isSunday: true, isOnSale: false, launchPrice: 13500, rank: 'レベル B', statusText: '未売り出し (推奨¥13.5k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/15 (日)', aiReason: '新着売り出し用推奨価格です。' },
+                    { dayNum: 16, isOnSale: false, launchPrice: 12000, rank: 'レベル C', statusText: '未売り出し (推奨¥12.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/16 (月)', aiReason: '新着売り出し用推奨価格です。' },
+                    { dayNum: 17, isOnSale: false, launchPrice: 12000, rank: 'レベル C', statusText: '未売り出し (推奨¥12.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/17 (火)', aiReason: '新着売り出し用推奨価格です。' },
+                    { dayNum: 18, isOnSale: false, launchPrice: 12500, rank: 'レベル C', statusText: '未売り出し (推奨¥12.5k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/18 (水)', aiReason: '新着売り出し用推奨価格です。' },
+                    { dayNum: 19, isOnSale: false, launchPrice: 12500, rank: 'レベル C', statusText: '未売り出し (推奨¥12.5k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/19 (木)', aiReason: '新着売り出し用推奨価格です。' },
+                    { dayNum: 20, isOnSale: false, launchPrice: 16000, rank: 'レベル A', statusText: '未売り出し (推奨¥16.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/20 (金)', aiReason: '新着売り出し用推奨価格です。' },
+                    { dayNum: 21, isSaturday: true, isOnSale: false, launchPrice: 23000, rank: 'レベル S', statusText: '未売り出し (推奨¥23.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/21 (土)', aiReason: '三連休初日・高需要。' },
+                    { dayNum: 22, isSunday: true, isOnSale: false, launchPrice: 22000, rank: 'レベル S', statusText: '未売り出し (推奨¥22.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/22 (日)', aiReason: '三連休中日。' },
+                    { dayNum: 23, isOnSale: false, launchPrice: 14000, rank: 'レベル B', statusText: '未売り出し (推奨¥14.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/23 (月・祝)', aiReason: '三連休最終日。' },
+                    { dayNum: 24, isOnSale: false, launchPrice: 12000, rank: 'レベル C', statusText: '未売り出し (推奨¥12.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/24 (火)', aiReason: '特記なし。' },
+                    { dayNum: 25, isOnSale: false, launchPrice: 12000, rank: 'レベル C', statusText: '未売り出し (推奨¥12.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/25 (水)', aiReason: '特記なし。' },
+                    { dayNum: 26, isOnSale: false, launchPrice: 12500, rank: 'レベル C', statusText: '未売り出し (推奨¥12.5k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/26 (木)', aiReason: '特記なし。' },
+                    { dayNum: 27, isOnSale: false, launchPrice: 16000, rank: 'レベル A', statusText: '未売り出し (推奨¥16.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/27 (金)', aiReason: '特記なし。' },
+                    { dayNum: 28, isSaturday: true, isOnSale: false, launchPrice: 22000, rank: 'レベル S', statusText: '未売り出し (推奨¥22.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/28 (土)', aiReason: '土曜強気。' },
+                    { dayNum: 29, isSunday: true, isOnSale: false, launchPrice: 13000, rank: 'レベル C', statusText: '未売り出し (推奨¥13.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/29 (日)', aiReason: '特記なし。' },
+                    { dayNum: 30, isOnSale: false, launchPrice: 12000, rank: 'レベル C', statusText: '未売り出し (推奨¥12.0k)', statusColor: 'bg-slate-800 text-amber-300', dateStr: '11/30 (月)', aiReason: '特記なし。' }
+                ],
+
+                // Day-Specific Setup Data
+                daySetupList: [
+                    { room: 'シングルルーム', icon: 'fa-user', basePrice: 12000, compRange: '¥14,000 - ¥16,500', eventFactor: '+20%', launchPrice: 14800, tlLevel: 'A' },
+                    { room: 'ダブルルーム', icon: 'fa-user-group', basePrice: 15000, compRange: '¥17,500 - ¥20,000', eventFactor: '+20%', launchPrice: 18500, tlLevel: 'A' },
+                    { room: 'ツインルーム', icon: 'fa-bed', basePrice: 18000, compRange: '¥21,000 - ¥24,000', eventFactor: '+22%', launchPrice: 22500, tlLevel: 'S' },
+                    { room: 'スイートルーム', icon: 'fa-crown', basePrice: 38000, compRange: '¥42,000 - ¥48,000', eventFactor: '+18%', launchPrice: 45000, tlLevel: 'S' }
+                ],
+
+                initApp() {
+                    this.$nextTick(() => {
+                        this.renderTodayChart();
+                    });
+                },
+
+                updateChart() {
+                    if (!this.chartInstance) return;
+                    let ourData = [];
+                    let compData = [];
+
+                    if (this.selectedRoomFilter === 'all') {
+                        ourData = [14500, 18000, 22000, 45000];
+                        compData = [15660, 19100, 22100, 47160];
+                    } else if (this.selectedRoomFilter === 'single') {
+                        ourData = [14500, 0, 0, 0];
+                        compData = [15660, 0, 0, 0];
+                    } else if (this.selectedRoomFilter === 'double') {
+                        ourData = [0, 18000, 0, 0];
+                        compData = [0, 19100, 0, 0];
+                    } else if (this.selectedRoomFilter === 'twin') {
+                        ourData = [0, 0, 22000, 0];
+                        compData = [0, 0, 22100, 0];
+                    } else if (this.selectedRoomFilter === 'suite') {
+                        ourData = [0, 0, 0, 45000];
+                        compData = [0, 0, 0, 47160];
+                    }
+
+                    this.chartInstance.data.datasets[0].data = ourData;
+                    this.chartInstance.data.datasets[1].data = compData;
+                    this.chartInstance.update();
+                },
+
+                renderTodayChart() {
+                    const ctx = document.getElementById('todayComparisonChart');
+                    if (!ctx) return;
+
+                    this.chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['シングル', 'ダブル', 'ツイン', 'スイート'],
+                            datasets: [
+                                {
+                                    label: '自社設定価格',
+                                    data: [14500, 18000, 22000, 45000],
+                                    backgroundColor: 'rgba(99, 102, 241, 0.85)',
+                                    borderColor: '#6366f1',
+                                    borderWidth: 1,
+                                    borderRadius: 6
+                                },
+                                {
+                                    label: '競合3社平均価格',
+                                    data: [15660, 19100, 22100, 47160],
+                                    backgroundColor: 'rgba(148, 163, 184, 0.4)',
+                                    borderColor: '#94a3b8',
+                                    borderWidth: 1,
+                                    borderRadius: 6
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return context.dataset.label + ': ¥' + context.parsed.y.toLocaleString();
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    grid: {
+                                        color: 'rgba(255, 255, 255, 0.05)'
+                                    },
+                                    ticks: {
+                                        color: '#94a3b8',
+                                        callback: function (value) {
+                                            return '¥' + value.toLocaleString();
+                                        }
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        color: '#cbd5e1'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                openModal(dayData) {
+                    this.selectedModalData = dayData;
+                    this.modalOpen = true;
+                },
+
+                applyModalPrice() {
+                    this.modalOpen = false;
+                    this.showToast((this.selectedModalData?.dateStr || '対象日') + ' の更新価格をTL-リンカーンに送信完了しました！');
+                },
+
+                showToast(msg) {
+                    this.toast.message = msg;
+                    this.toast.show = true;
+                    setTimeout(() => {
+                        this.toast.show = false;
+                    }, 3500);
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
