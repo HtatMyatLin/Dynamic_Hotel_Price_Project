@@ -1,0 +1,45 @@
+# Project Context & Member 6 Rules (`Dynamic_Hotel_Price_Project`)
+
+## 1. Project Overview & Scope
+
+- **Project Name:** AI Hotel Pricing Support System (`AIホテル料金設定支援システム`) — a 7-member, 8-week college prototype for hotels in the Kamata area, Tokyo.
+- **Core Purpose:** Compare competitor hotel prices under matched conditions (date, room group, guests, nights, meal plan, cancellation/tax status), compute rule-based price recommendations with clear Japanese explanations, and record human staff decisions (`採用` Adopt, `修正` Modify, `見送り` Skip).
+- **Strict Scope Boundaries:**
+  - Final pricing decisions belong strictly to hotel staff; **never** implement auto-pushing prices to external OTA/booking sites.
+  - **Offline Demo Requirement:** The final demo must run completely locally on a single machine **without internet access** (using local SQLite and local frontend assets).
+  - **Performance Target:** Main screens < 3 seconds; recommendation API < 2 seconds.
+
+## 2. My Role: Member 6 (Backend, API & Integration Lead)
+
+- **Git Branch:** `backend/fastapi-setup` (Never commit directly to protected `main` or other members' branches).
+- **Tech Stack:** Python 3, FastAPI, Uvicorn, Pydantic, SQLite.
+- **Core Responsibilities & Team Interfaces:**
+  - **Database (with Member 4):** Connect FastAPI to SQLite (`*.db`). Enforce CSV import validation (return exact row numbers on error; atomic rollback on failure so bad imports never corrupt the DB).
+  - **Pricing Engine (with Member 5):** Invoke Member 5's deterministic rule-based pricing function (`pricing_engine.py`) using input snapshots and return suggested prices, breakdowns, hold reasons, and rule versions.
+  - **Frontend API (with Member 7):** Serve JSON endpoints with CORS enabled:
+    - `GET /comparison` (competitor prices, median, own price, sources, timestamps, missing-data reasons)
+    - `GET /calendar` (up to 6 months daily statuses: on-sale, un-sold, stopped, events, weather, recommendation flags)
+    - `POST /recommendations` (run pricing logic on snapshot, return proposal ID & breakdown)
+    - `POST /decisions` (save staff decision + reason; prevent duplicate clicks/submissions; warn/block saving outdated proposals or wrong dates/rooms)
+    - `POST /imports` (validate & import CSV data atomically)
+
+## 3. Mandatory Data & Safety Rules
+
+- **Never mix `PUBLIC` and `SAMPLE` data** in median calculations, recommendations, or displays. Always propagate `data_kind` (`PUBLIC` / `SAMPLE` / `PROVIDED` / `DERIVED`) and `dataset_version`.
+- **Never convert missing/unfetched prices (`NULL`) to `0` yen.** Keep them as `null` with an explicit missing reason.
+- **Never overwrite past staff decisions** when prices are recalculated; preserve full audit history across server restarts.
+- **No PII:** Never collect or store real customer names, phone numbers, emails, payment info, or reservation numbers.
+- **Cloud Cost Constraint:** Any GCP deployment uses a zero-cost `e2-micro` VM in `us-west1` with Standard Persistent Disk, stopped when not testing.
+
+## 4. Current Progress (Completed as of Week 1)
+
+- Cloned repo locally at `D:\Hotel Project Kamata\Dynamic_Hotel_Price_Project` and checked out `backend/fastapi-setup`.
+- Updated root `.gitignore` to ignore `venv/`, `__pycache__/`, and `*.db`.
+- Created `backend/venv`, installed `fastapi`, `uvicorn`, and `pydantic`, and froze dependencies into `backend/requirements.txt`.
+- Created `backend/main.py` with CORS middleware, `GET /` health check, and `GET /api/v1/sample-hotel` returning 1 mock Kamata hotel record (`w1-mock-v1`).
+- Verified Uvicorn runs cleanly on `http://127.0.0.1:8000` (`200 OK` on `/docs`).
+
+## 5. Next Immediate Tasks
+
+1. Commit and push Week 1 backend files (`backend/main.py`, `backend/requirements.txt`, `.gitignore`) to `origin backend/fastapi-setup`.
+2. Scaffold Week 2 SQLite database schema & connection module (`backend/database.py` & `backend/models.py`) to align with Member 4's data dictionary and prepare the v1 API contracts (`GET /comparison`, `GET /calendar`, `POST /recommendations`, `POST /decisions`, `POST /imports`).
