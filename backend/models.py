@@ -24,11 +24,11 @@ class Hotel(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<Hotel(hotel_id="'{self.hotel_id}', name="'{self.hotel_name}')>"
+        return f"<Hotel(hotel_id='{self.hotel_id}', name='{self.hotel_name}')>"
 
 
 class CompetitorPrice(Base):
-    """Competitor hotel prices."""
+    """Competitor hotel prices - imported from CSV or scraped."""
     __tablename__ = "competitor_prices"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -48,7 +48,8 @@ class CompetitorPrice(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<CompetitorPrice(stay_date="'{self.stay_date}', hotel_id="'{self.hotel_id}', price={self.price_yen})>"
+        return f"<CompetitorPrice(stay_date='{self.stay_date}', hotel_id='{self.hotel_id}', price={self.price_yen})>"
+
 
 class Event(Base):
     """Local events affecting hotel pricing."""
@@ -63,8 +64,7 @@ class Event(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<Event(event_id="'{self.event_id}', name="'{self.event_name}')>"
-
+        return f"<Event(event_id='{self.event_id}', name='{self.event_name}')>"
 
 class ImportHistory(Base):
     """CSV import operation history for audit."""
@@ -81,7 +81,7 @@ class ImportHistory(Base):
     error_message = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<ImportHistory(import_id="'{self.import_id}', status="'{self.status}')>"
+        return f"<ImportHistory(import_id='{self.import_id}', status='{self.status}')>"
 
 
 class PriceProposal(Base):
@@ -106,7 +106,7 @@ class PriceProposal(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<PriceProposal(proposal_id="'{self.proposal_id}', stay_date="'{self.stay_date}')>"
+        return f"<PriceProposal(proposal_id='{self.proposal_id}', stay_date='{self.stay_date}')>"
 
 
 class StaffDecision(Base):
@@ -122,7 +122,7 @@ class StaffDecision(Base):
     decided_at = Column(DateTime, nullable=False)
 
     def __repr__(self) -> str:
-        return f"<StaffDecision(decision_id="'{self.decision_id}', proposal_id="'{self.proposal_id}')>"
+        return f"<StaffDecision(decision_id='{self.decision_id}', proposal_id='{self.proposal_id}')>"
 
 
 class DailyCalendarStatus(Base):
@@ -142,4 +142,4 @@ class DailyCalendarStatus(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<DailyCalendarStatus(date="'{self.date}', room_group="'{self.room_group}')>"
+        return f"<DailyCalendarStatus(date='{self.date}', room_group='{self.room_group}')>"
