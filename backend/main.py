@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.database import init_db
+
 app = FastAPI(
     title="AI Hotel Pricing Support API",
     description="Member 6 Backend - Kamata Hotel Dynamic Pricing Prototype",
@@ -15,6 +17,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on FastAPI startup."""
+    init_db()
 
 @app.get("/")
 def health_check():
